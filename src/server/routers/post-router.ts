@@ -1,29 +1,44 @@
-import { posts } from "@/server/db/schema"
+import { chatHistory } from "@/server/db/schema"
 import { desc } from "drizzle-orm"
 import { z } from "zod"
 import { j, publicProcedure } from "../jstack"
 
-export const postRouter = j.router({
-  recent: publicProcedure.query(async ({ c, ctx }) => {
+export const chatRouter = j.router({
+  recentMessage: publicProcedure.query(async ({ c, ctx }) => {
     const { db } = ctx
 
-    const [recentPost] = await db
+    const [recentMessage] = await db
       .select()
-      .from(posts)
-      .orderBy(desc(posts.createdAt))
+      .from(chatHistory)
+      .orderBy(desc(chatHistory.createdAt))
       .limit(1)
 
-    return c.superjson(recentPost ?? null)
+    return c.superjson(recentMessage ?? null)
   }),
 
-  create: publicProcedure
-    .input(z.object({ name: z.string().min(1) }))
+  sendMessage: publicProcedure
+    .input(
+      z.object({
+        message: z.string().min(1),
+        userId: z.number(),
+        isUserMessage: z.boolean().default(true),
+        metadata: z.record(z.any()).optional(),
+      })
+    )
     .mutation(async ({ ctx, c, input }) => {
-      const { name } = input
+      const { message, userId, isUserMessage, metadata } = input
       const { db } = ctx
 
-      const post = await db.insert(posts).values({ name })
+      const chatMessage = await db
+        .insert(chatHistory)
+        .values({
+          message,
+          userId,
+          isUserMessage,
+          metadata,
+        })
+        .returning()
 
-      return c.superjson(post)
+      return c.superjson(chatMessage)
     }),
 })

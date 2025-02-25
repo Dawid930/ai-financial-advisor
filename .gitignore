@@ -47,3 +47,6 @@ instructions/
 
 # cursor
 .cursorrules
+
+# clerk configuration (can include secrets)
+/.clerk/

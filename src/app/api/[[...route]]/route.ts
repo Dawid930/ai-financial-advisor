@@ -1,6 +1,13 @@
-import appRouter from "@/server"
+import appRouter from "@/server/index"
 import { handle } from "hono/vercel"
 
-// This route catches all incoming API requests and lets your appRouter handle them.
-export const GET = handle(appRouter.handler)
-export const POST = handle(appRouter.handler)
+// Create a new Hono app and mount our router
+const app = appRouter
+
+// Export the Vercel Edge handler for all HTTP methods
+export const GET = handle(app)
+export const POST = handle(app)
+export const PUT = handle(app)
+export const DELETE = handle(app)
+export const PATCH = handle(app)
+export const OPTIONS = handle(app)

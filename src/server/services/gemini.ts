@@ -9,7 +9,7 @@ import {
 
 // Type for chat message
 interface ChatMessage {
-  role: "user" | "assistant"
+  role: "user" | "model" | "system" | "function"
   content: string
 }
 
@@ -20,6 +20,33 @@ const generationConfig: GenerationConfig = {
   topK: 64,
   maxOutputTokens: 65536,
 }
+
+// System prompt to guide the AI's behavior
+const SYSTEM_PROMPT = `You are an expert AI Financial Advisor specializing in loan comparisons and financial guidance. Your role is to:
+
+1. Help users understand different loan options and their implications
+2. Provide personalized loan recommendations based on user's financial situation
+3. Explain financial concepts in simple, clear terms
+4. Offer practical advice for improving loan eligibility
+5. Help users make informed financial decisions
+
+Guidelines:
+- Always be professional and empathetic
+- Explain complex terms in simple language
+- Focus on practical, actionable advice
+- Consider the user's full financial context
+- Highlight both benefits and risks
+- Never make promises about loan approval
+- Be transparent about limitations of advice
+
+When making suggestions:
+- Focus on loan-related topics
+- Suggest exploring different loan types
+- Ask about financial goals
+- Recommend ways to improve credit score
+- Discuss budgeting and affordability
+
+Remember: You are an advisor, not a lender. Always encourage users to verify information with actual financial institutions.`
 
 class GeminiService {
   private model: GenerativeModel
@@ -39,15 +66,31 @@ class GeminiService {
   }
 
   /**
-   * Starts a new chat session with the given history
-   * @param history Previous chat messages
+   * Starts a new chat session with the system prompt
    */
-  public startChat(history: ChatMessage[] = []) {
+  public startChat() {
     this.chatSession = this.model.startChat({
-      history: history.map((msg) => ({
-        role: msg.role,
-        parts: msg.content,
-      })),
+      history: [
+        {
+          role: "user",
+          parts: [
+            {
+              text:
+                "[System Instructions] " +
+                SYSTEM_PROMPT +
+                "\n\nPlease acknowledge your role and confirm you understand these instructions.",
+            },
+          ],
+        },
+        {
+          role: "model",
+          parts: [
+            {
+              text: "I understand my role as an AI Financial Advisor. I will follow the guidelines provided and focus on helping users with their loan-related queries while maintaining professionalism and providing clear, actionable advice. I will be empathetic, explain concepts clearly, and always encourage users to verify information with financial institutions. I'm ready to assist with loan comparisons and financial guidance.",
+            },
+          ],
+        },
+      ],
     })
     return this.chatSession
   }
@@ -74,9 +117,21 @@ class GeminiService {
     // Add context to the message if provided
     const fullMessage = context
       ? `User Context:
-         - Loan Amount: ${context.loanAmount || "Not specified"}
-         - Loan Duration: ${context.loanDuration || "Not specified"}
-         - Monthly Income: ${context.monthlyIncome || "Not specified"}
+         - Loan Amount: ${
+           context.loanAmount
+             ? `$${context.loanAmount.toLocaleString()}`
+             : "Not specified"
+         }
+         - Loan Duration: ${
+           context.loanDuration
+             ? `${context.loanDuration} months`
+             : "Not specified"
+         }
+         - Monthly Income: ${
+           context.monthlyIncome
+             ? `$${context.monthlyIncome.toLocaleString()}`
+             : "Not specified"
+         }
          - Credit Score: ${context.creditScore || "Not specified"}
          
          User Message: ${message}`
@@ -103,12 +158,13 @@ class GeminiService {
    * @returns Array of suggested next user actions
    */
   private generateSuggestions(response: string): string[] {
-    // TODO: Implement more sophisticated suggestion generation
-    // For now, return static suggestions
+    // Common loan-related suggestions
     return [
       "Tell me more about your loan requirements",
-      "Would you like to calculate loan affordability?",
-      "Let's review your financial situation",
+      "Would you like to compare different loan types?",
+      "Let's discuss your credit score and how to improve it",
+      "Would you like to calculate your loan affordability?",
+      "Shall we explore ways to improve your loan application?",
     ]
   }
 }

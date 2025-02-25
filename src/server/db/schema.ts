@@ -9,6 +9,7 @@ import {
   integer,
   json,
   varchar,
+  jsonb,
 } from "drizzle-orm/pg-core"
 
 export const users = pgTable(
@@ -60,19 +61,14 @@ export const userPreferences = pgTable(
     userId: integer("user_id")
       .references(() => users.id)
       .notNull(),
-    preferredLoanAmount: decimal("preferred_loan_amount", {
-      precision: 10,
-      scale: 2,
-    }),
-    preferredDuration: integer("preferred_duration"), // in months
-    preferredBanks: json("preferred_banks"), // Array of preferred bank names
-    monthlyIncome: decimal("monthly_income", { precision: 10, scale: 2 }),
+    preferredLoanAmount: text("preferred_loan_amount"),
+    preferredDuration: integer("preferred_duration"),
+    preferredBanks: jsonb("preferred_banks").$type<string[]>(),
+    monthlyIncome: text("monthly_income"),
     creditScore: integer("credit_score"),
-    notificationEnabled: boolean("notification_enabled")
-      .default(true)
-      .notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+    notificationEnabled: boolean("notification_enabled").default(true),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
   },
   (table) => [index("user_preferences_user_id_idx").on(table.userId)]
 )
@@ -87,8 +83,8 @@ export const chatHistory = pgTable(
       .notNull(),
     message: text("message").notNull(),
     isUserMessage: boolean("is_user_message").notNull(),
-    metadata: json("metadata"), // Store any additional message metadata
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [index("chat_history_user_id_idx").on(table.userId)]
 )
@@ -101,9 +97,31 @@ export const loanComparisons = pgTable(
     userId: integer("user_id")
       .references(() => users.id)
       .notNull(),
-    selectedLoans: json("selected_loans").notNull(), // Array of loan IDs being compared
-    comparisonCriteria: json("comparison_criteria").notNull(), // User's comparison parameters
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    loanAmount: text("loan_amount").notNull(),
+    duration: integer("duration").notNull(),
+    results: jsonb("results").$type<
+      Array<{
+        bankId: string
+        interestRate: number
+        monthlyPayment: number
+        totalPayment: number
+      }>
+    >(),
+    createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [index("loan_comparisons_user_id_idx").on(table.userId)]
 )
+
+export const loans = pgTable("loans", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  bankId: text("bank_id").notNull(),
+  amount: text("amount").notNull(),
+  duration: integer("duration").notNull(),
+  interestRate: text("interest_rate").notNull(),
+  monthlyPayment: text("monthly_payment").notNull(),
+  totalPayment: text("total_payment").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+})

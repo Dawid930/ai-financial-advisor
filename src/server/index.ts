@@ -1,5 +1,4 @@
 import { j } from "./jstack"
-import { postRouter } from "./routers/post-router"
 import { userRouter } from "./routers/user-router"
 import { loanRouter } from "./routers/loan-router"
 import { chatRouter } from "./routers/chat-router"
@@ -7,8 +6,6 @@ import { chatRouter } from "./routers/chat-router"
 /**
  * This is your base API.
  * Here, you can handle errors, not-found responses, cors and more.
- *
- * @see https://jstack.app/docs/backend/app-router
  */
 const api = j
   .router()
@@ -20,13 +17,10 @@ const api = j
  * This is the main router for your server.
  * All routers in /server/routers should be added here manually.
  */
-const appRouter = j.mergeRouters(api, {
-  post: postRouter,
-  user: userRouter,
-  loan: loanRouter,
-  chat: chatRouter,
-})
+const appRouter = api
+  .route("/chat", chatRouter)
+  .route("/user", userRouter)
+  .route("/loan", loanRouter)
 
 export type AppRouter = typeof appRouter
-
 export default appRouter

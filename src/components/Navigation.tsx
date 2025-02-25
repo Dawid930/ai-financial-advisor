@@ -1,6 +1,6 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { MessageSquare, Home, Calculator } from "lucide-react";
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { MessageSquare, Home, Calculator } from "lucide-react"
 
 export function Navigation() {
   return (
@@ -35,5 +35,5 @@ export function Navigation() {
         </div>
       </div>
     </nav>
-  );
-} 
+  )
+}

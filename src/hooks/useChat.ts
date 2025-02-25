@@ -5,6 +5,7 @@ interface Message {
   content: string
   isAi: boolean
   timestamp: Date
+  suggestions?: string[]
 }
 
 interface ChatState {
@@ -15,7 +16,7 @@ interface ChatState {
 
 interface ChatResponse {
   message: string
-  suggestions?: string[]
+  suggestions: string[]
 }
 
 export function useChat() {
@@ -25,7 +26,15 @@ export function useChat() {
     error: null,
   })
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (
+    content: string,
+    context?: {
+      loanAmount?: number
+      loanDuration?: number
+      monthlyIncome?: number
+      creditScore?: number
+    }
+  ) => {
     if (!content.trim()) return
 
     const userMessage: Message = {
@@ -43,25 +52,33 @@ export function useChat() {
     }))
 
     try {
-      const response = await fetch("/api/chat", {
+      const res = await fetch("/api/chat/send", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: content }),
+        body: JSON.stringify({
+          message: content,
+          context,
+        }),
       })
 
-      if (!response.ok) {
-        throw new Error("Failed to get AI response")
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`)
       }
 
-      const data = (await response.json()) as ChatResponse
+      const data = (await res.json()) as ChatResponse
+
+      if (!data.message || !data.suggestions) {
+        throw new Error("Invalid response format")
+      }
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: data.message,
         isAi: true,
         timestamp: new Date(),
+        suggestions: data.suggestions,
       }
 
       setState((prev) => ({
@@ -69,12 +86,15 @@ export function useChat() {
         messages: [...prev.messages, aiMessage],
         isLoading: false,
       }))
+
+      return data
     } catch (error) {
       setState((prev) => ({
         ...prev,
         isLoading: false,
         error: error instanceof Error ? error.message : "Something went wrong",
       }))
+      throw error
     }
   }
 

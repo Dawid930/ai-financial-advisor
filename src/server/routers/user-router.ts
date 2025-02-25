@@ -1,10 +1,7 @@
 import { z } from "zod"
-import { j, publicProcedure } from "../jstack"
 import { users, userPreferences } from "../db/schema"
 import { eq } from "drizzle-orm"
-import { Context } from "hono"
-import { DrizzleDatabase } from "../types"
-import { ContextWithSuperJSON } from "jstack"
+import { j, privateProcedure, publicProcedure } from "../jstack"
 
 // Input validation schemas
 const createUserSchema = z.object({
@@ -21,33 +18,11 @@ const updatePreferencesSchema = z.object({
   notificationEnabled: z.boolean().optional(),
 })
 
-// Create authenticated procedure
-const authMiddleware = j.middleware(async ({ c, next }) => {
-  // TODO: Implement Clerk authentication
-  // For now, we'll use a mock user
-  const mockUser = {
-    clerkId: "mock_clerk_id",
-    email: "mock@example.com",
-  }
-
-  return next({ user: mockUser })
-})
-
-const privateProcedure = publicProcedure.use(authMiddleware)
-
-interface RouterContext {
-  db: DrizzleDatabase
-  user: {
-    clerkId: string
-    email: string
-  }
-}
-
 export const userRouter = j.router({
   // Create a new user (called after Clerk authentication)
   create: publicProcedure
     .input(createUserSchema)
-    .post(async ({ ctx, c, input }) => {
+    .post(async ({ c, ctx, input }) => {
       const { db } = ctx
 
       // Check if user already exists
@@ -56,7 +31,7 @@ export const userRouter = j.router({
       })
 
       if (existingUser) {
-        throw new Error("User already exists")
+        return c.json({ error: "User already exists" }, 400)
       }
 
       // Create new user
@@ -72,7 +47,7 @@ export const userRouter = j.router({
     }),
 
   // Get user profile
-  getProfile: privateProcedure.get(async ({ ctx, c }) => {
+  getProfile: privateProcedure.get(async ({ c, ctx }) => {
     const { db, user } = ctx
 
     const userProfile = await db.query.users.findFirst({
@@ -83,7 +58,7 @@ export const userRouter = j.router({
     })
 
     if (!userProfile) {
-      throw new Error("User not found")
+      return c.json({ error: "User not found" }, 404)
     }
 
     return c.json({ user: userProfile })
@@ -92,7 +67,7 @@ export const userRouter = j.router({
   // Update user preferences
   updatePreferences: privateProcedure
     .input(updatePreferencesSchema)
-    .post(async ({ ctx, c, input }) => {
+    .post(async ({ c, ctx, input }) => {
       const { db, user } = ctx
 
       // Get user ID from clerk ID
@@ -101,7 +76,7 @@ export const userRouter = j.router({
       })
 
       if (!dbUser) {
-        throw new Error("User not found")
+        return c.json({ error: "User not found" }, 404)
       }
 
       // Convert number values to strings for database
@@ -128,7 +103,7 @@ export const userRouter = j.router({
     }),
 
   // Delete user account
-  delete: privateProcedure.post(async ({ ctx, c }) => {
+  delete: privateProcedure.post(async ({ c, ctx }) => {
     const { db, user } = ctx
 
     await db.delete(users).where(eq(users.clerkId, user.clerkId))
